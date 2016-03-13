@@ -41,7 +41,7 @@ public class DriveProto extends OpMode {
     //private ColorSensor color_bottom;
     private int ladderPos;
     private int pivotPos;
-    //private boolean bypass;
+    private boolean bypass;
     //private double bypassStop;
     private float turbo = 0.5f;
     private float in;
@@ -214,11 +214,9 @@ public class DriveProto extends OpMode {
             }
         }
 
-        /*
         if(gamepad1.a) {
             bypass = true;
         }
-        */
 
         //If driver right trigger is being held, contract all 3 ladder DCs
         if(gamepad1.right_trigger > 0.5) {
@@ -271,7 +269,7 @@ public class DriveProto extends OpMode {
         }
 
         //If operator dpad up is being held, move pivot up
-        if(gamepad1.dpad_up) {
+        if(gamepad1.dpad_up && (pivotPos >= 2377 || bypass)) {
             pivot.setPower(-0.23);
             v.setPosition(0.0);
             //l_arm.setPosition(0.625);
@@ -292,30 +290,8 @@ public class DriveProto extends OpMode {
                     pivotL = true;
                 }
             } else {
-                if(gamepad2.dpad_up) {
-                    pivot.setPower(-0.23);
-                    v.setPosition(0.0);
-                    //l_arm.setPosition(0.625);
-                    r_arm.setPosition(0.36);
-                    if(!pivotL) {
-                        rp.setPosition(1.0);
-                        pivotL = true;
-                    }
-                } else {
-                    if(gamepad2.dpad_down) {
-                        pivot.setPower(0.55);
-                        v.setPosition(0.0);
-                        //l_arm.setPosition(0.55);
-                        r_arm.setPosition(0.36);
-                        if(!pivotL) {
-                            rp.setPosition(1.0);
-                            pivotL = true;
-                        }
-                    } else {
-                        //If operator neither dpad down nor dpad up is being held, stop pivot
-                        pivot.setPower(0.0);
-                    }
-                }
+                //If operator neither dpad down nor dpad up is being held, stop pivot
+                pivot.setPower(0.0);
             }
         }
 
@@ -327,13 +303,14 @@ public class DriveProto extends OpMode {
             }
         }
 
-        if(gamepad1.a) {
+        if(gamepad2.dpad_up) {
             lp.setPosition(1.0);
         } else {
-            if (gamepad1.b) {
+            if (gamepad2.dpad_down) {
                 lp.setPosition(0.0);
             }
         }
+
         //Send information back to the phone
         //telemetry.addData("rotation", gyro.getHeading());
         telemetry.addData("pivot", pivotPos);
