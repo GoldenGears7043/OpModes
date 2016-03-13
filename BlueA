@@ -15,14 +15,13 @@ import com.qualcomm.hardware.ModernRoboticsI2cGyro;
  * @author SSI Robotics
  * @version 2015-08-01-06-01
  */
-public class BlueA extends PushBotTelemetry
+public class BlueAProto extends PushBotTelemetry
 {
 
     public static final int COLOR_BOTTOM_I2C = 0x42;
     public static final int COLOR_TOP_I2C = 0x3c;
     private static boolean read = false;
     private static int target = 0;
-    private int i = 0;
 
     //--------------------------------------------------------------------------
     //
@@ -33,7 +32,7 @@ public class BlueA extends PushBotTelemetry
      *
      * The system calls this member when the class is instantiated.
      */
-    public BlueA ()
+    public BlueAProto()
 
     {
         //
@@ -87,6 +86,7 @@ public class BlueA extends PushBotTelemetry
     @Override public void loop ()
 
     {
+        enableBottomLed();
         //----------------------------------------------------------------------
         //
         // State: Initialize (i.e. state_0).
@@ -107,15 +107,16 @@ public class BlueA extends PushBotTelemetry
                 //
                 // Transition to the next state when this method is called again.
                 //
-                gyroCalibrate();
                 //Calibrate gyro
+                gyroCalibrate();
+                //Wait 3 seconds
                 try {
                     Thread.sleep(3000);
                 } catch(InterruptedException ex) {
                     Thread.currentThread().interrupt();
                 }
                 v_state++;
-                //Wait 3 seconds
+
                 break;
             //
             // Drive forward until the encoders exceed the specified values.
@@ -131,7 +132,7 @@ public class BlueA extends PushBotTelemetry
                 //
                 // Start the drive wheel motors at quarter power.
                 //
-                set_drive_power(0.25f, 0.25f);
+                set_drive_power(-0.275, -0.25);
 
                 //
                 // Have the motor shafts turned the required amount?
@@ -139,7 +140,7 @@ public class BlueA extends PushBotTelemetry
                 // If they haven't, then the op-mode remains in this state (i.e this
                 // block will be executed the next time this method is called).
                 //
-                if (have_drive_encoders_reached (inch(10), inch(10)))
+                if (have_drive_encoders_reached (inch(6), inch(6)))
                 {
                     //
                     // Reset the encoders to ensure they are at a known good value.
@@ -163,17 +164,18 @@ public class BlueA extends PushBotTelemetry
             //
 
             case 2:
+                enableBottomLed();
                 //Start turning
                 run_without_drive_encoders();
-                set_drive_power(0.25f, -0.25f);
+                set_drive_power (0.25f, -0.25f);
                 //Set up turn variables with gyro
-                int degrees = 26;
+                int degrees = 27;
                 if(!read) {
                     target = degrees;
                     read = true;
                 }
                 //If turning amount reached, move on
-                if (!(getHeading() >= 350 || getHeading() == 359 ) && getHeading() > target)
+                if (!(getHeading() >= 349 || getHeading() == 0) && getHeading() > target)
                 {
                     reset_drive_encoders ();
                     set_drive_power (0.0f, 0.0f);
@@ -194,7 +196,7 @@ public class BlueA extends PushBotTelemetry
             case 4:
                 run_without_drive_encoders();
                 //Move forward
-                set_drive_power (0.25f, 0.25f);
+                set_drive_power (-0.25f, -0.25f);
                 //Stop at white line
                 if (lineDetectWhite())
                 {
@@ -215,11 +217,16 @@ public class BlueA extends PushBotTelemetry
 
             case 6:
                 run_without_drive_encoders();
+                if(!touch()) {
+                    dropperPos(1);
+                } else {
+                    dropperPos(0);
+                }
                 //Follow white line
                 if(lineDetectWhite()) {
-                    set_drive_power (0.2f, 0.2f);
+                    set_drive_power (-0.22f, -0.22f);
                 } else {
-                    set_drive_power (0.0f, -0.2f);
+                    set_drive_power (0.22f, 0.0f);
                 }
                 //If coming close to beacon, close bumper
                 if(lightDetected() >= 0.001) {
@@ -242,14 +249,13 @@ public class BlueA extends PushBotTelemetry
                 set_drive_power (0.0f, 0.0f);
                 //If color sensor sees the left color is blue
                 if(getBlue() >= 1){
-                    //Push left button
+                    //Push right button
                     pushRightBeacon(true);
-                    m_warning_message("Red");
                     v_state++;
                 } else {
-                    //Push right button
+                    //If it is not blue
+                    //Push left block
                     pushLeftBeacon(true);
-                    m_warning_message("Blue");
                     v_state++;
                 }
                 break;
@@ -262,12 +268,11 @@ public class BlueA extends PushBotTelemetry
             case 9:
                 run_without_drive_encoders();
                 //Drop climbers
-                if(i < 9999) {
-                    dropperPos(1);
-                } else {
-                    dropperPos(2);
+                dropperPos(1);
+                if (touch2()) {
+                    reset_drive_encoders ();
+                    v_state++;
                 }
-                i++;
                 break;
             //
             // Wait...
@@ -282,20 +287,21 @@ public class BlueA extends PushBotTelemetry
                 //Wait case
 
                 //Disabled code below
-                /*run_using_encoders ();
-                set_drive_power (-1.0f, 1.0f);
-                if (have_drive_encoders_reached(degrees(25), degrees(25)))
+                run_using_encoders ();
+                dropperPos(2);
+                set_drive_power (0.275, 0.275);
+                if (have_drive_encoders_reached(inch(58), inch(58)))
                 {
                     reset_drive_encoders ();
                     set_drive_power (0.0f, 0.0f);
                     v_state++;
                 }
-                break;*/
-                //
-                // Wait...
-                //
+                break;
+            //
+            // Wait...
+            //
 
-                //Extra cases if more steps are needed later on
+            //Extra cases if more steps are needed later on
             case 12:
                 if (have_drive_encoders_reset ())
                 {
@@ -335,9 +341,13 @@ public class BlueA extends PushBotTelemetry
         //
         update_telemetry(); // Update common telemetry
         telemetry.addData("18", "State: " + v_state);
-        telemetry.addData("Dropper", getDrop());
+        telemetry.addData("Color Null", colorNull());
+        telemetry.addData("I2C", enableBottomLed());
+        telemetry.addData("Encoder", a_right_encoder_count());
+        telemetry.addData("Inch", inch(4));
+        //telemetry.addData("Dropper", getDrop());
         telemetry.addData("Raw Light", lightDetected());
-        telemetry.addData("Blue", getBlue());
+        //telemetry.addData("Blue", getBlue());
         telemetry.addData("Alpha", getAlp());
         telemetry.addData("Gyro", getHeading());
         telemetry.addData("Heading", target);
@@ -366,3 +376,4 @@ public class BlueA extends PushBotTelemetry
     }
 
 } // BlueA
+
