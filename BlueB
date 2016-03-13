@@ -2,8 +2,10 @@ package com.qualcomm.ftcrobotcontroller.opmodes;
 
 //------------------------------------------------------------------------------
 //
-// BlueB
+// RedA
 //
+
+import com.qualcomm.hardware.ModernRoboticsI2cGyro;
 
 /**
  * Provide a basic autonomous operational mode that uses the left and right
@@ -13,25 +15,24 @@ package com.qualcomm.ftcrobotcontroller.opmodes;
  * @author SSI Robotics
  * @version 2015-08-01-06-01
  */
-public class BlueB extends PushBotTelemetry
+public class BlueBProto extends PushBotTelemetry
 {
 
     public static final int COLOR_BOTTOM_I2C = 0x42;
     public static final int COLOR_TOP_I2C = 0x3c;
     private static boolean read = false;
     private static int target = 0;
-    private int i = 0;
 
     //--------------------------------------------------------------------------
     //
-    // BlueB
+    // RedA
     //
     /**
      * Construct the class.
      *
      * The system calls this member when the class is instantiated.
      */
-    public BlueB()
+    public BlueBProto()
 
     {
         //
@@ -44,7 +45,7 @@ public class BlueB extends PushBotTelemetry
         //
         // All via self-construction.
 
-    } // BlueB
+    } // RedA
 
     //--------------------------------------------------------------------------
     //
@@ -85,102 +86,104 @@ public class BlueB extends PushBotTelemetry
     @Override public void loop ()
 
     {
+        enableBottomLed();
         //----------------------------------------------------------------------
         //
         // State: Initialize (i.e. state_0).
         //
         switch (v_state)
         {
-        //
-        // Synchronize the state machine and hardware.
-        //
-        case 0:
             //
-            // Reset the encoders to ensure they are at a known good value.
+            // Synchronize the state machine and hardware.
             //
-            reset_drive_encoders();
-            //Open bumper
-            setBackV(true);
-
-            //
-            // Transition to the next state when this method is called again.
-            //
-            //Calibrate gyro
-            gyroCalibrate();
-            //Wait 7 seconds
-            try {
-                Thread.sleep(7000);
-            } catch(InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
-            v_state++;
-
-            break;
-        //
-        // Drive forward until the encoders exceed the specified values.
-        //
-        case 1:
-            //
-            // Tell the system that motor encoders will be used.  This call MUST
-            // be in this state and NOT the previous or the encoders will not
-            // work.  It doesn't need to be in subsequent states.
-            //
-            run_using_encoders ();
-
-            //
-            // Start the drive wheel motors at quarter power.
-            //
-            set_drive_power(0.35f, 0.25f);
-
-            //
-            // Have the motor shafts turned the required amount?
-            //
-            // If they haven't, then the op-mode remains in this state (i.e this
-            // block will be executed the next time this method is called).
-            //
-            if (have_drive_encoders_reached (inch(70), inch(70)))
-            {
+            case 0:
                 //
                 // Reset the encoders to ensure they are at a known good value.
                 //
-                reset_drive_encoders ();
+                reset_drive_encoders();
+                //Open bumper
+                setBackV(true);
 
                 //
-                // Stop the motors.
+                // Transition to the next state when this method is called again.
                 //
-                //set_drive_power (0.0f, 0.0f);
-
-                //
-                // Transition to the next state when this method is called
-                // again.
-                //
+                //Calibrate gyro
+                gyroCalibrate();
+                //Wait 3 seconds
+                try {
+                    Thread.sleep(3000);
+                } catch(InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                }
                 v_state++;
-            }
-            break;
-        //
-        // Wait...
-        //
 
-        case 2:
-            //Start turning
-            run_without_drive_encoders();
-            set_drive_power (0.25f, -0.25f);
-            //Set up turn variables with gyro
-            int degrees = 110;
-            if(!read) {
-                target = degrees;
-                read = true;
-            }
-            //If turning amount reached, move on
-            if (!(getHeading() >= 350 || getHeading() == 359) && getHeading() > target)
-            {
-                reset_drive_encoders ();
-                set_drive_power (0.0f, 0.0f);
-                v_state++;
-            }
-            break;
+                break;
+            //
+            // Drive forward until the encoders exceed the specified values.
+            //
+            case 1:
+                //
+                // Tell the system that motor encoders will be used.  This call MUST
+                // be in this state and NOT the previous or the encoders will not
+                // work.  It doesn't need to be in subsequent states.
+                //
+                run_using_encoders ();
 
-        //Wait
+                //
+                // Start the drive wheel motors at quarter power.
+                //
+                set_drive_power(-0.275, -0.25);
+
+                //
+                // Have the motor shafts turned the required amount?
+                //
+                // If they haven't, then the op-mode remains in this state (i.e this
+                // block will be executed the next time this method is called).
+                //
+                if (have_drive_encoders_reached (inch(3), inch(3)))
+                {
+                    //
+                    // Reset the encoders to ensure they are at a known good value.
+                    //
+                    reset_drive_encoders ();
+
+                    //
+                    // Stop the motors.
+                    //
+                    //set_drive_power (0.0f, 0.0f);
+
+                    //
+                    // Transition to the next state when this method is called
+                    // again.
+                    //
+                    v_state++;
+                }
+                break;
+            //
+            // Wait...
+            //
+
+            case 2:
+                enableBottomLed();
+                //Start turning
+                run_without_drive_encoders();
+                set_drive_power (0.25f, -0.25f);
+                //Set up turn variables with gyro
+                int degrees = 38;
+                if(!read) {
+                    target = degrees;
+                    read = true;
+                }
+                //If turning amount reached, move on
+                if (!(getHeading() >= 349 || getHeading() == 0 ) && getHeading() > target)
+                {
+                    reset_drive_encoders ();
+                    set_drive_power (0.0f, 0.0f);
+                    v_state++;
+                }
+                break;
+
+            //Wait
 
             case 3:
                 if (have_drive_encoders_reset())
@@ -188,41 +191,149 @@ public class BlueB extends PushBotTelemetry
                     v_state++;
                 }
                 read = false;
-                //Close bumper
-                setBackV(false);
                 break;
 
             case 4:
-                run_without_drive_encoders ();
-                //Back into ramp
-                set_drive_power(-0.50f, -0.50f);
+                run_without_drive_encoders();
+                //Move forward
+                set_drive_power (-0.25f, -0.25f);
                 //Stop at white line
                 if (lineDetectWhite())
                 {
                     reset_drive_encoders ();
+                    set_drive_power (0.0f, 0.0f);
                     v_state++;
                 }
                 break;
 
-        case 5:
-            reset_drive_encoders ();
-            if (have_drive_encoders_reset ())
-            {
+            //Wait
+            case 5:
+                //Reset encoders
+                if (have_drive_encoders_reset())
+                {
+                    v_state++;
+                }
+                break;
+
+            case 6:
+                run_without_drive_encoders();
+                if(!touch()) {
+                    dropperPos(1);
+                } else {
+                    dropperPos(0);
+                }
+                //Follow white line
+                if(lineDetectWhite()) {
+                    set_drive_power (-0.22f, -0.22f);
+                } else {
+                    set_drive_power (0.22f, 0.0f);
+                }
+                //If coming close to beacon, close bumper
+                if(lightDetected() >= 0.001) {
+                    setBackV(false);
+                }
+                //Stop at beacon
+                if (atWallProto())
+                {
+                    reset_drive_encoders ();
+                    set_drive_power (0.0f, 0.0f);
+                    v_state++;
+                }
+                break;
+
+            //Wait
+
+            case 7:
+                run_without_drive_encoders();
+                //Stop robot
+                set_drive_power (0.0f, 0.0f);
+                //If color sensor sees the left color is blue
+                if(getBlue() >= 1){
+                    //Push right button
+                    pushRightBeacon(true);
+                    v_state++;
+                } else {
+                    //If it is not blue
+                    //Push left block
+                    pushLeftBeacon(true);
+                    v_state++;
+                }
+                break;
+
+
+            case 8:
                 v_state++;
-            }
-            //Insure bumper is closed
-            setBackV(false);
-            break;
-        //
-        // Perform no action - stay in this case until the OpMode is stopped.
-        // This method will still be called regardless of the state machine.
-        //
-        default:
+                break;
+
+            case 9:
+                run_without_drive_encoders();
+                //Drop climbers
+                dropperPos(1);
+                if (touch2()) {
+                    reset_drive_encoders ();
+                    v_state++;
+                }
+                break;
             //
-            // The autonomous actions have been accomplished (i.e. the state has
-            // transitioned into its final state.
+            // Wait...
             //
-            break;
+            case 10:
+                if (have_drive_encoders_reset())
+                {
+                    v_state++;
+                }
+                break;
+            case 11:
+                //Wait case
+
+                //Disabled code below
+                run_using_encoders ();
+                dropperPos(2);
+                set_drive_power (0.275, 0.275);
+                if (have_drive_encoders_reached(inch(58), inch(58)))
+                {
+                    reset_drive_encoders ();
+                    set_drive_power (0.0f, 0.0f);
+                    v_state++;
+                }
+                break;
+            //
+            // Wait...
+            //
+
+            //Extra cases if more steps are needed later on
+            case 12:
+                if (have_drive_encoders_reset ())
+                {
+                    v_state++;
+                }
+                break;
+            case 13:
+                v_state++;
+                break;
+            //
+            // Wait...
+            //
+            // Wait...
+            //
+            case 14:
+                reset_drive_encoders ();
+                if (have_drive_encoders_reset ())
+                {
+                    v_state++;
+                }
+                setBackV(false);
+                break;
+            //
+            // Perform no action - stay in this case until the OpMode is stopped.
+            // This method will still be called regardless of the state machine.
+            //
+            default:
+                //
+                // The autonomous actions have been accomplished (i.e. the state has
+                // transitioned into its final state.
+                //
+                break;
         }
 
         //
@@ -230,12 +341,16 @@ public class BlueB extends PushBotTelemetry
         //
         update_telemetry(); // Update common telemetry
         telemetry.addData("18", "State: " + v_state);
-        telemetry.addData("Dropper", getDrop());
-        telemetry.addData("Raw Light", lightDetected());
+        //telemetry.addData("Color Null", colorNull());
+        //telemetry.addData("I2C", enableBottomLed());
+        telemetry.addData("Encoder", a_right_encoder_count());
+        //telemetry.addData("Inch", inch(4));
+        //telemetry.addData("Dropper", getDrop());
+        telemetry.addData("Raw Light", lightDetectedRaw());
         telemetry.addData("Blue", getBlue());
         telemetry.addData("Alpha", getAlp());
         telemetry.addData("Gyro", getHeading());
-        telemetry.addData("Heading", target);
+        //telemetry.addData("Heading", target);
     } // loop
 
     //--------------------------------------------------------------------------
@@ -260,4 +375,5 @@ public class BlueB extends PushBotTelemetry
                 (inch / (Math.PI * 4)) * 1440 * 0.75;
     }
 
-} // BlueB
+} // RedA
+
