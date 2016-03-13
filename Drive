@@ -12,7 +12,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.ServoController;
 import com.qualcomm.robotcore.util.Range;
 
-public class Drive extends OpMode {
+public class DriveProto extends OpMode {
     //Define variables
     private DcMotorController left_controller;
     private DcMotor front_left;
@@ -20,7 +20,7 @@ public class Drive extends OpMode {
     private DcMotorController right_controller;
     private DcMotor front_right;
     private DcMotor back_right;
-    private ServoController servo_controller;
+    //private ServoController servo_controller;
     private Servo v;
     private Servo dropper;
     private Servo lp;
@@ -34,10 +34,18 @@ public class Drive extends OpMode {
     private DcMotorController s;
     //private DcMotor sweeper;
     private DcMotor pivot;
-    private DeviceInterfaceModule sensors;
-    private ColorSensor color_top;
-    private ColorSensor color_bottom;
-    private GyroSensor gyro;
+    //private GyroSensor gyro;
+
+    //private DeviceInterfaceModule sensors;
+    //private ColorSensor color_top;
+    //private ColorSensor color_bottom;
+    private int ladderPos;
+    private int pivotPos;
+    //private boolean bypass;
+    //private double bypassStop;
+    private float turbo = 0.5f;
+    private float in;
+    private boolean pivotL = false;
 
     @Override
     public void init() {
@@ -53,21 +61,22 @@ public class Drive extends OpMode {
         ladder_extension = hardwareMap.dcMotor.get("ladder_e");
 
         dropper = hardwareMap.servo.get("dropper");
-        dropper.setPosition(Servo.MIN_POSITION + 0.5);
+        dropper.setPosition(0.5);
 
         lp = hardwareMap.servo.get("lp");
         rp = hardwareMap.servo.get("rp");
+        rp.setPosition(0.0);
 
         l_arm = hardwareMap.servo.get("l_arm");
         r_arm = hardwareMap.servo.get("r_arm");
         l_arm.setPosition(Servo.MIN_POSITION);
         r_arm.setPosition(Servo.MAX_POSITION);
 
-        gyro = hardwareMap.gyroSensor.get("gyro");
+        //gyro = hardwareMap.gyroSensor.get("gyro");
         //Calibrate gyro
-        gyro.calibrate();
+        //gyro.calibrate();
 
-        servo_controller = hardwareMap.servoController.get("servo_controller");
+        //servo_controller = hardwareMap.servoController.get("servo_controller");
         ladder1 = hardwareMap.dcMotor.get("ladder1");
         ladder2 = hardwareMap.dcMotor.get("ladder2");
         ladder_controller = hardwareMap.dcMotorController.get("ladder_controller");
@@ -75,10 +84,15 @@ public class Drive extends OpMode {
         s = hardwareMap.dcMotorController.get("s");
 
         //Reverse right drive motors
-        front_right.setDirection(DcMotor.Direction.REVERSE);
-        back_right.setDirection(DcMotor.Direction.REVERSE);
+        front_left.setDirection(DcMotor.Direction.REVERSE);
+        back_left.setDirection(DcMotor.Direction.REVERSE);
+        front_right.setDirection(DcMotor.Direction.FORWARD);
+        back_right.setDirection(DcMotor.Direction.FORWARD);
+
+        ladder1.setDirection(DcMotor.Direction.REVERSE);
 
         //Wait for gyro to calibrate
+        /*
         while (gyro.isCalibrating()) {
             try {
                 Thread.sleep(50);
@@ -86,16 +100,73 @@ public class Drive extends OpMode {
                 e.printStackTrace();
             }
         }
+        */
+
+        ladder_extension.setMode(DcMotorController.RunMode.RESET_ENCODERS);
+        pivot.setMode(DcMotorController.RunMode.RESET_ENCODERS);
     }
 
     @Override
     public void loop() {
-            //Set left drive power
-            front_left.setPower(gamepad1.left_stick_y);
-            back_left.setPower(gamepad1.left_stick_y);
-            //Set right drive power
-            front_right.setPower(gamepad1.right_stick_y);
-            back_right.setPower(gamepad1.right_stick_y);
+
+        ladder_extension.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
+        pivot.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
+        ladderPos = ladder_extension.getCurrentPosition();
+        pivotPos = pivot.getCurrentPosition();
+        //bypassStop = bypass ? 0.0 : 1.0;
+
+        in = ladderPos > 0 ? (float) 1.0 : (float) 0.0;
+
+        float power = gamepad1.left_stick_y;
+        float turn = gamepad1.right_stick_x;
+        
+        if (gamepad1.b) {
+            turbo = 0.5f;
+        } else {
+            turbo = 0.5f;
+        }
+
+        /*
+        //Set left drive power
+        front_left.setPower(gamepad1.left_stick_y * 0.75);
+        back_left.setPower(gamepad1.left_stick_y * 0.75);
+        //Set right drive power
+        front_right.setPower(gamepad1.right_stick_y * 0.75);
+        back_right.setPower(gamepad1.right_stick_y * 0.75);
+        */
+
+        if (power == 0 && turn != 0) {
+            setPowerLeft(turn * -1);
+            setPowerRight(turn);
+        }
+
+        if (turn == 0) {
+            setPowerLeft(power);
+            setPowerRight(power);
+        }
+
+        //Turning and driving forward
+
+        if (turn > 0 && power > 0) {
+            setPowerLeft(turn * -1);
+            setPowerRight(turn - power);
+        }
+
+        if (turn < 0 && power > 0) {
+            setPowerLeft(turn + power);
+            setPowerRight(turn * -1);
+        }
+
+        if (turn > 0 && power < 0) {
+            setPowerLeft(turn * -1);
+            setPowerRight(turn + power);
+        }
+
+        if (turn < 0 && power < 0) {
+            setPowerLeft(turn - power);
+            setPowerRight(turn);
+        }
+
         //If operator x is being held, extend dropper
         if (gamepad2.x) {
             dropper.setPosition(1.0);
@@ -120,73 +191,164 @@ public class Drive extends OpMode {
         }
 
         //If operator left joy stick is held upwards, raise the left arm
-        if (gamepad2.left_stick_y < 0) {
+        if (gamepad2.left_stick_y > 0) {
             //Slightly increases left arm position until it is at maximum position
-            l_arm.setPosition(Range.clip(l_arm.getPosition() + 0.01, 0, 0.6));
+            l_arm.setPosition(Range.clip(l_arm.getPosition() + 0.01, 0, 0.55));
         } else {
             //If operator left joy stick is held downwards, lower the left arm
-            if (gamepad2.left_stick_y > 0) {
+            if (gamepad2.left_stick_y < 0) {
                 //Slightly increases left arm position until it is at minimum position
-                l_arm.setPosition(Range.clip(l_arm.getPosition() - 0.01, 0, 0.6));
+                l_arm.setPosition(Range.clip(l_arm.getPosition() - 0.01, 0, 0.55));
             }
         }
 
         //If operator right joy stick is held upwards, raise the right arm
-        if (gamepad2.right_stick_y < 0) {
+        if (gamepad2.right_stick_y > 0) {
             //Slightly increases right arm position until it is at maximum position
-            r_arm.setPosition(Range.clip(r_arm.getPosition() - 0.01, 0.2, 1));
+            r_arm.setPosition(Range.clip(r_arm.getPosition() - 0.01, 0.36, 1));
         } else {
             //If operator right joy stick is held downwards, lower the right arm
-            if (gamepad2.right_stick_y > 0) {
+            if (gamepad2.right_stick_y < 0) {
                 //Slightly increases right arm position until it is at minimum position
-                r_arm.setPosition(Range.clip(r_arm.getPosition() + 0.01, 0.2, 1));
+                r_arm.setPosition(Range.clip(r_arm.getPosition() + 0.01, 0.36, 1));
             }
         }
+
+        /*
+        if(gamepad1.a) {
+            bypass = true;
+        }
+        */
 
         //If driver right trigger is being held, contract all 3 ladder DCs
-        if(gamepad1.right_trigger > 0.0) {
-            ladder1.setPower(-1.0);
-            ladder2.setPower(-1.0);
-            ladder_extension.setPower(-0.10);
-            /*
+        if(gamepad1.right_trigger > 0.5) {
+            ladder1.setPower(0.85); /*76*/
+            ladder2.setPower(0.85); /*76*/
+            ladder_extension.setPower(-1.0 * in);
             //Set left drive power
-            front_left.setPower(-0.5);
-            back_left.setPower(-0.5);
+            setPowerLeft(-0.5f);
             //Set right drive power
-            front_right.setPower(-0.5);
-            back_right.setPower(-0.5);
-            */
+            setPowerRight(-0.5f);
         } else {
-            //If operator right trigger is being held, extend all 3 ladder DCs
-            if(gamepad2.right_trigger > 0.0) {
-                ladder1.setPower(0.5);
-                ladder2.setPower(0.5);
-                ladder_extension.setPower(0.55);
+            if (gamepad2.right_trigger > 0.5) {
+                ladder1.setPower(0.75);
+                ladder2.setPower(0.75);
+                ladder_extension.setPower(-0.57 * in);
+                //Set left drive power
+                setPowerLeft(-0.5f);
+                //Set right drive power
+                setPowerRight(-0.5f);
             } else {
-                //If neither driver right trigger nor operator right trigger is being
-                //held, stop all 3 ladder DCs
-                ladder1.setPower(0.0);
-                ladder2.setPower(0.0);
-                ladder_extension.setPower(0.0);
+                //If operator right trigger is being held, extend all 3 ladder DCs
+                if (gamepad1.left_trigger > 0.5 && (ladderPos < 6000)) {
+                    ladder1.setPower(-0.60);
+                    ladder2.setPower(-0.60);
+                    ladder_extension.setPower(0.78);
+                    //Set left drive power
+                    setPowerLeft(-0.5f);
+                    //Set right drive power
+                    setPowerRight(-0.5f);
+                    rp.setPosition(0.0);
+                } else {
+                    if (gamepad2.left_trigger > 0.5 && (ladderPos < 6000)) {
+                        ladder1.setPower(-0.60);
+                        ladder2.setPower(-0.60);
+                        ladder_extension.setPower(0.78);
+                        //Set left drive power
+                        setPowerLeft(-0.5f);
+                        //Set right drive power
+                        setPowerRight(-0.5f);
+                        rp.setPosition(0.0);
+                    } else {
+                        //If neither driver right trigger nor operator right trigger is being
+                        //held, stop all 3 ladder DCs
+                        ladder1.setPower(0.0);
+                        ladder2.setPower(0.0);
+                        ladder_extension.setPower(0.0);
+                    }
+                }
             }
         }
 
-        //If operator dpad down is being held, move pivot down
-        if(gamepad2.dpad_down) {
+        //If operator dpad up is being held, move pivot up
+        if(gamepad1.dpad_up) {
             pivot.setPower(-0.23);
+            v.setPosition(0.0);
+            //l_arm.setPosition(0.625);
+            r_arm.setPosition(0.36);
+            if(!pivotL) {
+                rp.setPosition(1.0);
+                pivotL = true;
+            }
         } else {
-            //If operator dpad up is being held, move pivot up
-            if(gamepad2.dpad_up) {
+            //If operator dpad down is being held, move pivot down
+            if(gamepad1.dpad_down) {
                 pivot.setPower(0.55);
+                v.setPosition(0.0);
+                //l_arm.setPosition(0.55);
+                r_arm.setPosition(0.36);
+                if(!pivotL) {
+                    rp.setPosition(1.0);
+                    pivotL = true;
+                }
             } else {
-                //If operator neither dpad down nor dpad up is being held, stop pivot
-                pivot.setPower(0.0);
+                if(gamepad2.dpad_up) {
+                    pivot.setPower(-0.23);
+                    v.setPosition(0.0);
+                    //l_arm.setPosition(0.625);
+                    r_arm.setPosition(0.36);
+                    if(!pivotL) {
+                        rp.setPosition(1.0);
+                        pivotL = true;
+                    }
+                } else {
+                    if(gamepad2.dpad_down) {
+                        pivot.setPower(0.55);
+                        v.setPosition(0.0);
+                        //l_arm.setPosition(0.55);
+                        r_arm.setPosition(0.36);
+                        if(!pivotL) {
+                            rp.setPosition(1.0);
+                            pivotL = true;
+                        }
+                    } else {
+                        //If operator neither dpad down nor dpad up is being held, stop pivot
+                        pivot.setPower(0.0);
+                    }
+                }
+            }
+        }
+
+        if(gamepad1.x) {
+            rp.setPosition(1.0);
+        } else {
+            if (gamepad1.y) {
+                rp.setPosition(0.0);
+            }
+        }
+
+        if(gamepad1.a) {
+            lp.setPosition(1.0);
+        } else {
+            if (gamepad1.b) {
+                lp.setPosition(0.0);
             }
         }
         //Send information back to the phone
-        telemetry.addData("rotation", gyro.getHeading());
-        telemetry.addData("pivot", pivot.getPower());
-
-        }
+        //telemetry.addData("rotation", gyro.getHeading());
+        telemetry.addData("pivot", pivotPos);
+        telemetry.addData("ladder", ladderPos);
 
     }
+
+    public void setPowerLeft(float power) {
+        front_left.setPower(power * turbo);
+        back_left.setPower(power * turbo);
+    }
+
+    public void setPowerRight(float power) {
+        front_right.setPower(power * turbo * (1/1.1));
+        back_right.setPower(power * turbo * (1/1.1));
+    }
+
+}
