@@ -8,6 +8,7 @@ import com.qualcomm.robotcore.hardware.DcMotorController;
 import com.qualcomm.robotcore.hardware.GyroSensor;
 import com.qualcomm.robotcore.hardware.OpticalDistanceSensor;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.TouchSensor;
 import com.qualcomm.robotcore.util.Range;
 
 import java.util.Timer;
@@ -72,7 +73,7 @@ public class PushBotHardware extends OpMode
         catch (Exception p_exeception)
         {
             m_warning_message ("color_top");
-            DbgLog.msg (p_exeception.getLocalizedMessage ());
+            DbgLog.msg(p_exeception.getLocalizedMessage());
 
             color_top = null;
         }
@@ -88,7 +89,7 @@ public class PushBotHardware extends OpMode
             m_warning_message ("color_bottom");
             DbgLog.msg (p_exeception.getLocalizedMessage ());
 
-            color_top = null;
+            color_bottom = null;
         }
 
         try
@@ -114,6 +115,30 @@ public class PushBotHardware extends OpMode
             DbgLog.msg (p_exeception.getLocalizedMessage ());
 
             opticalDistanceSensor = null;
+        }
+
+        try
+        {
+            touch = hardwareMap.touchSensor.get("touch");
+        }
+        catch (Exception p_exeception)
+        {
+            m_warning_message ("touch");
+            DbgLog.msg (p_exeception.getLocalizedMessage ());
+
+            touch = null;
+        }
+
+        try
+        {
+            touch2 = hardwareMap.touchSensor.get("touch2");
+        }
+        catch (Exception p_exeception)
+        {
+            m_warning_message ("touch2");
+            DbgLog.msg (p_exeception.getLocalizedMessage ());
+
+            touch2 = null;
         }
 
         try
@@ -195,12 +220,32 @@ public class PushBotHardware extends OpMode
 
         try
         {
-            ladder_extension = hardwareMap.servo.get("ladder_e");
-            ladder_extension.setPosition(0.5);
+            ladder1 = hardwareMap.dcMotor.get("ladder1");
         }
-        catch (Exception p_exeception)
+        catch (Exception p_exeception) {
+            m_warning_message("ladder1");
+            DbgLog.msg(p_exeception.getLocalizedMessage());
+
+            ladder1 = null;
+        }
+
+        try
         {
-            m_warning_message ("ladder_e");
+            ladder2 = hardwareMap.dcMotor.get("ladder2");
+        }
+        catch (Exception p_exeception) {
+            m_warning_message("ladder2");
+            DbgLog.msg(p_exeception.getLocalizedMessage());
+
+            ladder2 = null;
+        }
+
+        try
+        {
+            ladder_extension = hardwareMap.dcMotor.get("ladder_e");
+        }
+        catch (Exception p_exeception) {
+            m_warning_message("ladder_e");
             DbgLog.msg(p_exeception.getLocalizedMessage());
 
             ladder_extension = null;
@@ -227,7 +272,10 @@ public class PushBotHardware extends OpMode
         try
         {
             v_motor_front_left_drive = hardwareMap.dcMotor.get ("front_left");
+            v_motor_front_left_drive.setDirection (DcMotor.Direction.FORWARD);
+
             v_motor_back_left_drive = hardwareMap.dcMotor.get ("back_left");
+            v_motor_back_left_drive.setDirection (DcMotor.Direction.FORWARD);
         }
         catch (Exception p_exeception)
         {
@@ -451,7 +499,7 @@ public class PushBotHardware extends OpMode
     }
 
     boolean lineDetectWhite() {
-        if (color_bottom != null) {
+        if (true/*color_bottom != null*/) {
             return color_bottom.alpha() >= 5;
         } else {
             return false;
@@ -464,7 +512,17 @@ public class PushBotHardware extends OpMode
 
     boolean atWall() {
         if (opticalDistanceSensor != null) {
-            return opticalDistanceSensor.getLightDetected() >= 0.03;
+            return opticalDistanceSensor.getLightDetected() >= 0.032;
+            //0.03
+        } else {
+            return false;
+        }
+    }
+
+    boolean atWallProto() {
+        if (opticalDistanceSensor != null) {
+            return opticalDistanceSensor.getLightDetectedRaw() >= 70;
+            //0.03
         } else {
             return false;
         }
@@ -473,6 +531,14 @@ public class PushBotHardware extends OpMode
    double lightDetected() {
         if (opticalDistanceSensor != null) {
             return opticalDistanceSensor.getLightDetected();
+        } else {
+            return 0.0;
+        }
+    }
+
+    double lightDetectedRaw() {
+        if (opticalDistanceSensor != null) {
+            return opticalDistanceSensor.getLightDetectedRaw();
         } else {
             return 0.0;
         }
@@ -914,7 +980,7 @@ public class PushBotHardware extends OpMode
         //
         // Have the encoders reached the specified values?
         //
-        if (has_left_drive_encoder_reached (p_left_count) &&
+        if (has_left_drive_encoder_reached (p_left_count) /*&&*/ ||
             has_right_drive_encoder_reached (p_right_count))
         {
             //
@@ -999,6 +1065,7 @@ public class PushBotHardware extends OpMode
     /**
      * Indicate whether the left drive encoder has been completely reset.
      */
+
     boolean has_left_drive_encoder_reset ()
     {
         //
@@ -1109,6 +1176,23 @@ public class PushBotHardware extends OpMode
         }
     }
 
+    public boolean colorNull () {
+        return color_top == null;
+    }
+
+    public int enableBottomLed () {
+        color_bottom.enableLed(true);
+        return color_bottom.getI2cAddress();
+    }
+
+    public boolean touch () {
+        return touch.isPressed();
+    }
+
+    public boolean touch2 () {
+        return touch2.isPressed();
+    }
+
     public double getDrop () {
         return dropper.getPosition();
     }
@@ -1160,12 +1244,16 @@ public class PushBotHardware extends OpMode
     private Servo l_arm;
     private Servo r_arm;
     private Servo dropper;
-    private Servo ladder_extension;
+    private DcMotor ladder_extension;
+    private DcMotor ladder1;
+    private DcMotor ladder2;
     private DcMotor pivot;
     private ColorSensor color_top;
     private ColorSensor color_bottom;
     private GyroSensor gyro;
     private OpticalDistanceSensor opticalDistanceSensor;
+    private TouchSensor touch;
+    private TouchSensor touch2;
     Timer timer = new Timer();
 
 
